@@ -1,4 +1,4 @@
-from machine import Pin
+from machine import Pin, Timer
 import network
 import time
 try:
@@ -8,11 +8,14 @@ except ImportError:
 import secrets
 
 relay1 = Pin(27, Pin.OUT)
+relay1.value(0)
+
 relay2 = Pin(28, Pin.OUT)
+relay2.value(0)
 
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-wlan.connect(secrets.SSID, secrets.PASS)  # ssid, password
+wlan.connect(secrets.SSID, secrets.PASS) # From secrets.py
 
 # Connect to the network
 wait = 10
@@ -31,6 +34,31 @@ else:
     ip = wlan.ifconfig()[0]
     print('IP:', ip)
 
+timer_mode = False  # Flag for timer mode
+
+def relay_toggle(timer):
+    global relay1, relay2
+    if relay1.value() == 0:
+        relay1.value(1)
+        relay2.value(0)
+    else:
+        relay1.value(0)
+        relay2.value(1)
+
+def start_timer_mode():
+    global timer_mode
+    if not timer_mode:
+        timer_mode = True
+        relay_timer.init(mode=Timer.PERIODIC, period=500, callback=relay_toggle)
+
+def stop_timer_mode():
+    global timer_mode
+    if timer_mode:
+        timer_mode = False
+        relay_timer.deinit()
+
+relay_timer = Timer(-1)
+
 
 def web_server():
     if relay1.value() == 1:
@@ -41,20 +69,39 @@ def web_server():
         relay2_state = ''
     else:
         relay2_state = 'checked'
-
+        
     html = """
     <html>
         <head>
+            <title>Pedestrian Lights</title>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
                 body{font-family:Arial; text-align: center; margin: 0px auto; padding-top:30px;}
-                .switch{position:relative;display:inline-block;width:120px;height:68px}.switch input{display:none}
+                .switch{position:relative;display:inline-block;width:120px;height:68px}
+                .switch input{display:none}
                 .slider{position:absolute;top:0;left:0;right:0;bottom:0;background-color:#ccc;border-radius:34px}
                 .slider:before{position:absolute;content:"";height:52px;width:52px;left:8px;bottom:8px;background-color:#fff;-webkit-transition:.4s;transition:.4s;border-radius:68px}
                 input:checked+.slider{background-color:#2196F3}
                 input:checked+.slider:before{-webkit-transform:translateX(52px);-ms-transform:translateX(52px);transform:translateX(52px)}
             </style>
+
             <script>
+                function toggleTimerMode(element) {
+                    var xhr = new XMLHttpRequest();
+                    var manualSwitch1 = document.getElementById('manualSwitch1');
+                    var manualSwitch2 = document.getElementById('manualSwitch2');
+
+                    if (element.checked) {
+                        xhr.open("GET", "/timer_mode/on", true);
+                        manualSwitch1.disabled = true;
+                        manualSwitch2.disabled = true;
+                    } else {
+                        xhr.open("GET", "/timer_mode/off", true);
+                        manualSwitch1.disabled = false;
+                        manualSwitch2.disabled = false;
+                    }
+                    xhr.send();
+                }
                 function toggleCheckbox(element, relayNum) {
                     var xhr = new XMLHttpRequest();
                     if(element.checked){
@@ -68,16 +115,26 @@ def web_server():
         </head>
         <body>
             <h1>Pedestrian Lights</h1>
+
+            <h2>Red Light</h2>
             <label class="switch">
-                <input type="checkbox" onchange="toggleCheckbox(this, '1')" %s>
+                <input type="checkbox" id="manualSwitch1" onchange="toggleCheckbox(this, '1')" %s>
                 <span class="slider"></span>
             </label>
+            
+            <h2>Green Light</h2>
             <label class="switch">
-                <input type="checkbox" onchange="toggleCheckbox(this, '2')" %s>
+                <input type="checkbox" id="manualSwitch2" onchange="toggleCheckbox(this, '2')" %s>
                 <span class="slider"></span>
+            </label>
+            
+            <h2>Timer Mode</h2>
+            <label class="switch">
+                <input type="checkbox" id="timerSwitch" onchange="toggleTimerMode(this)" %s>
+                <span class="slider"></span>Timer Mode
             </label>
         </body>
-    </html>""" % (relay1_state, relay2_state)
+    </html>""" % (relay1_state, relay2_state, 'checked' if timer_mode else '')
 
     return html
 
@@ -95,12 +152,16 @@ while True:
         conn.settimeout(None)
         request = str(request)
         print('Content = %s' % request)
+
+        # Relay 1
         if '/relay1/on' in request:
             print('RELAY 1 ON')
             relay1.value(0)
         elif '/relay1/off' in request:
             print('RELAY 1 OFF')
             relay1.value(1)
+
+        # Relay 2
         elif '/relay2/on' in request:
             print('RELAY 2 ON')
             relay2.value(0)
@@ -108,12 +169,23 @@ while True:
             print('RELAY 2 OFF')
             relay2.value(1)
 
+        # Timer Mode
+        elif '/timer_mode/on' in request:
+            print('Timer Mode ON')
+            start_timer_mode()
+        elif '/timer_mode/off' in request:
+            print('Timer Mode OFF')
+            stop_timer_mode()
+
         response = web_server()
         conn.send('HTTP/1.1 200 OK\n')
         conn.send('Content-Type: text/html\n')
         conn.send('Connection: close\n\n')
         conn.sendall(response)
         conn.close()
+
     except OSError as e:
         conn.close()
         print('Connection closed')
+
+
