@@ -7,11 +7,11 @@ except ImportError:
     import socket
 import secrets
 
-relay1 = Pin(27, Pin.OUT)
-relay1.value(0)
+redlight = Pin(27, Pin.OUT)
+redlight.value(0)
 
-relay2 = Pin(28, Pin.OUT)
-relay2.value(0)
+greenlight = Pin(28, Pin.OUT)
+greenlight.value(0)
 
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
@@ -37,13 +37,13 @@ else:
 timer_mode = False  # Flag for timer mode
 
 def relay_toggle(timer):
-    global relay1, relay2
-    if relay1.value() == 0:
-        relay1.value(1)
-        relay2.value(0)
+    global redlight, greenlight
+    if redlight.value() == 0:
+        redlight.value(1)
+        greenlight.value(0)
     else:
-        relay1.value(0)
-        relay2.value(1)
+        redlight.value(0)
+        greenlight.value(1)
 
 def start_timer_mode():
     global timer_mode
@@ -61,14 +61,14 @@ relay_timer = Timer(-1)
 
 
 def web_server():
-    if relay1.value() == 1:
-        relay1_state = ''
+    if redlight.value() == 1:
+        redlight_state = ''
     else:
-        relay1_state = 'checked'
-    if relay2.value() == 1:
-        relay2_state = ''
+        redlight_state = 'checked'
+    if greenlight.value() == 1:
+        greenlight_state = ''
     else:
-        relay2_state = 'checked'
+        greenlight_state = 'checked'
         
     html = """
     <html>
@@ -134,7 +134,7 @@ def web_server():
                 <span class="slider"></span>Timer Mode
             </label>
         </body>
-    </html>""" % (relay1_state, relay2_state, 'checked' if timer_mode else '')
+    </html>""" % (redlight_state, greenlight_state, 'checked' if timer_mode else '')
 
     return html
 
@@ -154,20 +154,20 @@ while True:
         print('Content = %s' % request)
 
         # Relay 1
-        if '/relay1/on' in request:
+        if '/redlight/on' in request:
             print('RELAY 1 ON')
-            relay1.value(0)
-        elif '/relay1/off' in request:
+            redlight.value(0)
+        elif '/redlight/off' in request:
             print('RELAY 1 OFF')
-            relay1.value(1)
+            redlight.value(1)
 
         # Relay 2
-        elif '/relay2/on' in request:
+        elif '/greenlight/on' in request:
             print('RELAY 2 ON')
-            relay2.value(0)
-        elif '/relay2/off' in request:
+            greenlight.value(0)
+        elif '/greenlight/off' in request:
             print('RELAY 2 OFF')
-            relay2.value(1)
+            greenlight.value(1)
 
         # Timer Mode
         elif '/timer_mode/on' in request:
