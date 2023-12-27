@@ -26,9 +26,10 @@ relay2 = Pin(28, Pin.OUT)
 relay2.value(0)
 
 # Set up the button
-button = Pin(22, Pin.IN, Pin.PULL_DOWN)
-button_pressed = False
-debounce_timer = Timer()
+interrupt_flag = 0
+debounce_time = 0
+pin = Pin(22, Pin.IN, Pin.PULL_UP)
+count = 0
 
 # Connect to the network
 wlan = network.WLAN(network.STA_IF)
@@ -62,6 +63,15 @@ def relay_toggle():
         relay1.value(0)
         relay2.value(1)
 
+def timer_toggle():
+    global timer_mode
+    if not timer_mode:
+        timer_mode = True
+        relay_timer.init(mode=Timer.PERIODIC, period=500, callback=relay_toggle)
+    else:    
+        timer_mode = False
+        relay_timer.deinit()
+
 def start_timer_mode():
     global timer_mode
     if not timer_mode:
@@ -74,26 +84,35 @@ def stop_timer_mode():
         timer_mode = False
         relay_timer.deinit()
 
+
 relay_timer = Timer(-1)
 
+def callback(pin):
+    global interrupt_flag, debounce_time
+    if (time.ticks_ms() - debounce_time) > 500:
+        interrupt_flag = 1
+        debounce_time = time.ticks_ms()
 
+pin.irq(trigger=Pin.IRQ_FALLING, handler=callback)
 
 # Button Functions
 def button_thread():
     print("Button Thread Created!")
+
+    global interrupt_flag
     
     while True:
-        if button.value() == 1:
-            if not button_pressed:
-                button_pressed = True
-                relay_toggle()
-                debounce_timer.init(mode=Timer.ONE_SHOT, period=500, callback=button_pressed_action)
-        else:
-            button_pressed = False
+        if interrupt_flag == 1:
+            interrupt_flag = 0
+            print("Button Pressed!")
+            timer_toggle()
+        time.sleep(0.1)  # Add a small delay to avoid high CPU usage
 
 # Web Server functions
 def server_thread():
     print("Server Thread Created!")
+    
+    global 
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 80))
