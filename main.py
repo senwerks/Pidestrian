@@ -1,12 +1,12 @@
 ################################################################
 # Pedestrian Lights Controller by Sen
-# v 0.2 (working on physical button + state machine)
+# v 0.3 (working on physical button + state machine)
+# STATUS: Hesitantly Functional
 # https://github.com/senwerks/pedestrian-lights
-# STATUS: NOT Functional
-# TODO: Trying to get multi-core working because
-#       button checking + Webserver block each other.
-# TODO: State machine for each function the lights do so the
-#       physical button or webserver can change states.
+#
+# TODO: Better state-management of the light modes/status
+# TODO: Make the webpage display current state of lights
+#       even if changed by timer or physical button
 ################################################################
 
 from machine import Pin, Timer
@@ -63,22 +63,22 @@ def relay_toggle():
         relay1.value(0)
         relay2.value(1)
 
-def timer_toggle():
+def toggle_timer_mode(relay_timer):
     global timer_mode
     if not timer_mode:
         timer_mode = True
-        relay_timer.init(mode=Timer.PERIODIC, period=500, callback=relay_toggle)
+        relay_timer.init(mode=Timer.PERIODIC, period=500, callback=lambda t: relay_toggle())
     else:    
         timer_mode = False
         relay_timer.deinit()
 
-def start_timer_mode():
+def start_timer_mode(relay_timer):
     global timer_mode
     if not timer_mode:
         timer_mode = True
-        relay_timer.init(mode=Timer.PERIODIC, period=500, callback=relay_toggle)
+        relay_timer.init(mode=Timer.PERIODIC, period=500, callback=lambda t: relay_toggle())
 
-def stop_timer_mode():
+def stop_timer_mode(relay_timer):
     global timer_mode
     if timer_mode:
         timer_mode = False
@@ -105,11 +105,14 @@ def button_thread():
         if interrupt_flag == 1:
             interrupt_flag = 0
             print("Button Pressed!")
+            toggle_timer_mode(relay_timer)
         time.sleep(0.1)  # Add a small delay to avoid high CPU usage
 
 # Web Server functions
 def server_thread():
     print("Server Thread Created!")
+    
+    global relay1, relay2
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 80))
@@ -144,10 +147,10 @@ def server_thread():
             # Timer Mode
             elif '/timer_mode/on' in request:
                 print('Timer Mode ON')
-                start_timer_mode()
+                start_timer_mode(relay_timer)
             elif '/timer_mode/off' in request:
                 print('Timer Mode OFF')
-                stop_timer_mode()
+                stop_timer_mode(relay_timer)
 
             if relay1.value() == 1:
                 relay1_state = ''
@@ -244,4 +247,5 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         machine.reset()
+
 
