@@ -1,12 +1,12 @@
 ################################################################
-# Pedestrian Lights Controller by Sen
-# v 0.3 (working on physical button + state machine)
-# STATUS: Hesitantly Functional
+# Pedestrian Lights Controller by Sen (Wifi-enabled Version)
+# v 0.4 (dysfunctionally functional)
 # https://github.com/senwerks/pedestrian-lights
 #
 # TODO: Better state-management of the light modes/status
 # TODO: Make the webpage display current state of lights
 #       even if changed by timer or physical button
+# TODO: Better error/crash handling
 ################################################################
 
 from machine import Pin, Timer
@@ -19,22 +19,22 @@ except ImportError:
 import secrets
 import _thread
 
-# Set up the 2 relays
+# Set up the 2 relay pins
 relay1 = Pin(27, Pin.OUT)
 relay1.value(0)
 relay2 = Pin(28, Pin.OUT)
 relay2.value(0)
 
-# Set up the button
+# Set up the physical button
 interrupt_flag = 0
 debounce_time = 0
 pin = Pin(22, Pin.IN, Pin.PULL_UP)
 count = 0
 
-# Connect to the network
+# Connect to the network using SSID and PASS vars from secrets.py
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-wlan.connect(secrets.SSID, secrets.PASS) # From secrets.py
+wlan.connect(secrets.SSID, secrets.PASS)
 wait = 10
 
 while wait > 0:
@@ -52,7 +52,11 @@ else:
     ip = wlan.ifconfig()[0]
     print('IP:', ip)
 
-timer_mode = False  # Flag for timer mode
+
+################################################################
+# Light Mode Functions
+    
+timer_mode = False
 
 def relay_toggle():
     global relay1, relay2
@@ -84,7 +88,6 @@ def stop_timer_mode(relay_timer):
         timer_mode = False
         relay_timer.deinit()
 
-
 relay_timer = Timer(-1)
 
 def callback(pin):
@@ -95,7 +98,10 @@ def callback(pin):
 
 pin.irq(trigger=Pin.IRQ_FALLING, handler=callback)
 
-# Button Functions
+
+################################################################
+# Button Functions that run on Core 1
+
 def button_thread():
     print("Button Thread Created!")
 
@@ -108,7 +114,10 @@ def button_thread():
             toggle_timer_mode(relay_timer)
         time.sleep(0.1)  # Add a small delay to avoid high CPU usage
 
-# Web Server functions
+
+################################################################
+# Web Server functions that run on Core 2
+        
 def server_thread():
     print("Server Thread Created!")
     
@@ -239,6 +248,9 @@ def server_thread():
             conn.close()
             print('Connection closed')
 
+
+################################################################
+# Now let's run everything!
 
 if __name__ == "__main__":
     try:

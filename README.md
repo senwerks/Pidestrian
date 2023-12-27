@@ -11,9 +11,6 @@ A Raspberry Pi Pico connected to a 240V Relay board with 2 relays, each of which
 
 ## Notes
 
-main.py requires a secrets.py file to be added alongside it, with these in it:
+There's an "online.py" and "offline.py", the former connects to Wifi and serves a web app with controls for the lights, and the latter is a simpler timer based system using a physical button to trigger mode changes.
 
-```
-SSID = "WifiSSID"
-PASS = "WifiPASS"
-```
+Rename one to "main.py" and copy it to the RPi Pico (online.py requires a Pico W, offline.py can use a Pico W or normal Pico). Read the notes in the files for config changes.
