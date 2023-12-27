@@ -99,20 +99,17 @@ pin.irq(trigger=Pin.IRQ_FALLING, handler=callback)
 def button_thread():
     print("Button Thread Created!")
 
-    global interrupt_flag
+    global interrupt_flag, timer_mode
     
     while True:
         if interrupt_flag == 1:
             interrupt_flag = 0
             print("Button Pressed!")
-            timer_toggle()
         time.sleep(0.1)  # Add a small delay to avoid high CPU usage
 
 # Web Server functions
 def server_thread():
     print("Server Thread Created!")
-    
-    global 
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 80))
