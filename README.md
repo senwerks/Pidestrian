@@ -1,4 +1,4 @@
-# Pedestrian Lights
+# Pidestrian - Pi-powered Pedestrian Lights
 
 A Raspberry Pi Pico connected to a 240V Relay board with 2 relays, each of which are connected to 240V LED spotlights inside a set of Pedestrian Crossing lights (the red/green person lights to cross an intersection). I'll upload more details, photos, wiring diagrams etc Soon™.
 
